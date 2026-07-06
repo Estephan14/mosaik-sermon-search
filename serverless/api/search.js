@@ -94,7 +94,11 @@ export default async function handler(req, res) {
     const [q] = await embed([query.slice(0, 500)]);
 
     // 2. Brute-force cosine over the whole corpus (doc vectors are unit length,
-    //    so the un-quantized dot product IS the cosine similarity).
+    //    so the un-quantized dot product IS the cosine similarity). We keep a
+    //    generous shortlist, then dedupe: the store has some double-ingested
+    //    rows, and neighbouring chunks of one sermon can crowd out variety —
+    //    so at most two moments per video make the final list.
+    const SHORTLIST = k * 6;
     const top = []; // small sorted list of {score, i}
     for (let i = 0; i < meta.length; i++) {
       const m = meta[i];
@@ -104,16 +108,30 @@ export default async function handler(req, res) {
       const off = i * DIMS;
       for (let d = 0; d < DIMS; d++) dot += q[d] * vecs[off + d];
       const score = dot * scales[i];
-      if (top.length < k) {
+      if (top.length < SHORTLIST) {
         top.push({ score, i });
         top.sort((a, b) => b.score - a.score);
-      } else if (score > top[k - 1].score) {
-        top[k - 1] = { score, i };
+      } else if (score > top[SHORTLIST - 1].score) {
+        top[SHORTLIST - 1] = { score, i };
         top.sort((a, b) => b.score - a.score);
       }
     }
 
-    const hits = top.map(({ score, i }, rank) => ({
+    const seen = new Set(); // exact duplicates (video_id + start)
+    const perVideo = new Map(); // variety: max 2 moments from any one sermon
+    const picked = [];
+    for (const { score, i } of top) {
+      const m = meta[i];
+      const key = `${m.video_id}:${m.start}`;
+      if (seen.has(key)) continue;
+      if ((perVideo.get(m.video_id) || 0) >= 2) continue;
+      seen.add(key);
+      perVideo.set(m.video_id, (perVideo.get(m.video_id) || 0) + 1);
+      picked.push({ score, i });
+      if (picked.length >= k) break;
+    }
+
+    const hits = picked.map(({ score, i }, rank) => ({
       rank: rank + 1,
       ...meta[i],
       highlight: "",
