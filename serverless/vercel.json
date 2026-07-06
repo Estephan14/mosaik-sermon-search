@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/search", "destination": "/api/search" },
+    { "source": "/preachers", "destination": "/preachers.json" }
+  ],
+  "functions": {
+    "api/search.js": {
+      "includeFiles": "index-data/**",
+      "memory": 1024,
+      "maxDuration": 30
+    }
+  }
+}

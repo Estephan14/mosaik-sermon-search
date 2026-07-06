@@ -93,3 +93,15 @@ serverless function.
 
 Built by [Jonathan Estephan](https://jonathanestephan.com). Sermon content
 belongs to Mosaik Berlin; this tool only makes their public library searchable.
+
+## Live demo
+
+**[Try it live →](https://jarvis-seven-ruddy.vercel.app/sermons)**
+
+The hosted version doesn't run LanceDB at all — `export_index.mjs` truncates
+the stored vectors to 768 Matryoshka dimensions, renormalizes, and quantizes
+to int8, shrinking the searchable index to ~50 MB. That's small enough to bake
+into a serverless function (`serverless/`) that brute-forces cosine over all
+31k vectors in memory per query — no database, no disk, no cold-start
+downloads. Top-5 results agree with the full 1536-dim store 4/5 on test
+queries (`sanity_check.mjs`).

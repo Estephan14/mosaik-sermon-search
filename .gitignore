@@ -8,3 +8,8 @@ transcripts/
 cookies.txt
 _cookieheader.txt
 _probe/
+
+# derived + local-only
+serverless/index-data/
+serverless/.vercel/
+serverless/.env.local
