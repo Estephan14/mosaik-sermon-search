@@ -1,0 +1,10 @@
+# Keep the image small + safe. NOTE: we deliberately DO include ./data (the
+# vector store) — that's what makes the container self-contained.
+node_modules
+transcripts
+*.log
+cookies.txt
+_cookieheader.txt
+.env
+.git
+_probe

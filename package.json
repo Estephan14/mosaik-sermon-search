@@ -1,0 +1,23 @@
+{
+  "name": "vector-stuff",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.ts",
+  "scripts": {
+    "ingest": "node --env-file=.env ingest.ts",
+    "sermons": "node --env-file=.env ingest_sermons.ts",
+    "sermons:download": "node download_transcripts.ts",
+    "sermons:ingest": "node --env-file=.env ingest_from_disk.ts",
+    "refresh": "node download_transcripts.ts && node --env-file=.env ingest_from_disk.ts",
+    "normalize:preachers": "node --env-file=.env normalize_preachers.ts",
+    "dev": "node --env-file=.env server.ts",
+    "search": "node --env-file=.env -e \"import('./search.ts').then(m=>m.searchSermons(process.argv[1],{limit:5})).then(h=>console.log(JSON.stringify(h,null,2)))\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@lancedb/lancedb": "^0.30.0"
+  }
+}

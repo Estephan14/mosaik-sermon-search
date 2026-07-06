@@ -1,0 +1,10 @@
+node_modules/
+.env
+# data/ is deliberately COMMITTED: the ~230 MB LanceDB vector store is what
+# makes this repo runnable and one-click deployable (see DEPLOY.md). The raw
+# transcripts are not — they're regenerable with the download script.
+transcripts/
+*.log
+cookies.txt
+_cookieheader.txt
+_probe/

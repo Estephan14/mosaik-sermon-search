@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sermon search · Mosaik Berlin</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; min-height: 100%; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+      background: radial-gradient(1200px 600px at 50% -10%, #16203a 0%, #0b0e14 55%); color: #e6e6e6;
+      display: flex; flex-direction: column;
+    }
+
+    /* ---- header / search ---- */
+    header { padding: 40px 24px 24px; display: flex; flex-direction: column; align-items: center; }
+    .brand { display: flex; align-items: center; gap: 13px; margin: 0 0 22px; }
+    .logo { width: 34px; height: 34px; flex: none; }
+    h1 { font-size: 20px; margin: 0; letter-spacing: .2px; }
+    h1 span { color: #8b93a7; font-weight: 500; }
+    form { display: flex; gap: 10px; width: 100%; max-width: 680px; flex-wrap: wrap; }
+    input[type="search"] {
+      flex: 1 1 320px; padding: 13px 16px; border-radius: 11px; border: 1px solid #232838;
+      background: #131825; color: #fff; font-size: 15px; outline: none;
+    }
+    input[type="search"]:focus { border-color: #3b82f6; }
+    select {
+      appearance: none; -webkit-appearance: none; cursor: pointer;
+      padding: 0 32px 0 13px; border-radius: 11px; border: 1px solid #232838;
+      background-color: #131825; color: #e6e6e6; font-size: 14px;
+      /* custom chevron, tucked 11px from the right edge */
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b93a7' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+      background-repeat: no-repeat; background-position: right 11px center; background-size: 13px;
+    }
+    select:focus { border-color: #3b82f6; outline: none; }
+    button.go {
+      padding: 0 22px; border: 0; border-radius: 11px; background: #3b82f6; color: #fff;
+      font-size: 15px; font-weight: 600; cursor: pointer;
+    }
+    button.go:disabled { opacity: .55; cursor: default; }
+    .examples { font-size: 13px; color: #6b7280; margin: 16px 0 0; text-align: center; line-height: 2; }
+    .examples a { color: #93b4f5; cursor: pointer; text-decoration: none; margin: 0 10px; white-space: nowrap; }
+    .examples a:hover { text-decoration: underline; }
+
+    /* ---- stage: the one central player ---- */
+    .stage { width: 100%; max-width: 920px; margin: 22px auto 0; padding: 0 24px; }
+    .player-frame {
+      position: relative; aspect-ratio: 16 / 9; background: #05070c; border-radius: 16px;
+      overflow: hidden; border: 1px solid #1d2333; box-shadow: 0 24px 60px -28px #000;
+    }
+    .player-frame iframe, .player-frame > div { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    .player-empty {
+      position: absolute; inset: 0; z-index: 4; display: grid; place-items: center; color: #5b6478;
+      font-size: 15px; text-align: center; padding: 24px; background: #05070c;
+    }
+    .player-empty[hidden] { display: none; }
+    /* our own clean poster — replaces YouTube's title-covered play button until you hit play */
+    .poster {
+      position: absolute; inset: 0; z-index: 3; border: 0; padding: 0; cursor: pointer;
+      background-size: cover; background-position: center;
+    }
+    .poster[hidden] { display: none; }
+    .poster::before { content: ""; position: absolute; inset: 0;
+      background: linear-gradient(180deg, #0b0e1433, #0b0e14cc); }
+    .poster::after {
+      content: "▶"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 74px; height: 74px; border-radius: 999px; background: #3b82f6e6; color: #fff;
+      display: grid; place-items: center; font-size: 24px; padding-left: 4px;
+      box-shadow: 0 10px 30px -6px #3b82f6aa;
+    }
+    .poster:hover::after { background: #3b82f6; }
+    .now { display: flex; align-items: center; gap: 10px; margin: 18px 4px 0; min-height: 24px; flex-wrap: wrap; }
+    .now .preacher { font-weight: 600; }
+    .now .muted { color: #8b93a7; font-size: 14px; }
+
+    /* ---- carousel ---- */
+    .carousel { width: 100%; margin: 38px 0 64px; position: relative; }
+    .track {
+      display: flex; gap: 22px; overflow-x: auto; scroll-snap-type: x mandatory;
+      padding: 12px max(24px, calc(50% - 190px)) 28px; scroll-padding-inline: max(24px, calc(50% - 190px));
+      scrollbar-width: none;
+    }
+    .track::-webkit-scrollbar { display: none; }
+    .card {
+      flex: 0 0 360px; scroll-snap-align: center; cursor: pointer;
+      border: 1px solid #1d2333; background: #10141f; border-radius: 16px; padding: 20px 22px;
+      transition: transform .22s ease, border-color .22s ease, opacity .22s ease; opacity: .55;
+    }
+    .card.active { opacity: 1; border-color: #3b82f6; transform: translateY(-6px); box-shadow: 0 18px 40px -24px #3b82f6; }
+    .card-top { display: flex; align-items: center; gap: 9px; margin-bottom: 13px; flex-wrap: wrap; }
+    .rank { width: 24px; height: 24px; flex: none; border-radius: 999px; background: #1c2436;
+      display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #93b4f5; }
+    .preacher { font-weight: 600; font-size: 14px; }
+    .lang { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #0b0e14;
+      background: #93b4f5; border-radius: 5px; padding: 2px 6px; font-weight: 700; }
+    .lang.de { background: #fbbf77; }
+    .date { font-size: 12px; color: #8b93a7; }
+    .score { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 12px; color: #b6c0d4; }
+    .title { font-size: 12px; color: #9aa4ba; margin: 0 0 10px; line-height: 1.45; }
+    .text { font-size: 14px; line-height: 1.6; margin: 0 0 14px;
+      display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+    /* the "why it matched" sentence, highlighted inside the passage */
+    .text mark { background: #3b82f63a; color: #dbe6ff; border-radius: 3px; padding: 0 2px;
+      box-shadow: inset 0 -1px 0 #3b82f6aa; }
+    .bar { height: 5px; border-radius: 999px; background: #1a2030; overflow: hidden; margin-bottom: 13px; }
+    .bar > span { display: block; height: 100%; background: linear-gradient(90deg, #3b82f6, #22d3ee); }
+    /* "more from this preacher" button on each card */
+    .more { border: 1px solid #2a3142; background: #131825; color: #93b4f5; cursor: pointer;
+      font-size: 12px; font-weight: 600; border-radius: 8px; padding: 7px 11px; }
+    .more:hover { background: #1c2436; border-color: #3b82f6; }
+
+    /* nav arrows */
+    .nav {
+      position: absolute; top: 50%; transform: translateY(-50%); z-index: 4;
+      width: 44px; height: 44px; border-radius: 999px; border: 1px solid #2a3142;
+      background: #131825cc; color: #e6e6e6; font-size: 22px; cursor: pointer; backdrop-filter: blur(6px);
+      display: grid; place-items: center;
+    }
+    .nav:hover { background: #1c2436; }
+    .nav.prev { left: 16px; } .nav.next { right: 16px; }
+    .nav[hidden] { display: none; }
+
+    .status { text-align: center; color: #8b93a7; font-size: 14px; padding: 8px 24px; min-height: 22px; }
+    .status .err { color: #f87171; }
+
+    /* ---- mobile ---- */
+    @media (max-width: 640px) {
+      header { padding: 26px 16px 16px; }
+      .brand { gap: 10px; margin-bottom: 16px; }
+      .logo { width: 28px; height: 28px; }
+      h1 { font-size: 17px; text-align: center; }
+      h1 span { display: block; font-size: 13px; margin-top: 3px; }
+      form { gap: 8px; }
+      input[type="search"] { flex: 1 1 100%; }
+      select { flex: 1 1 0; }
+      button.go { flex: 1 1 0; padding: 13px 0; }
+      .examples { font-size: 12px; }
+      .stage { padding: 0 16px; margin-top: 16px; }
+      .player-frame { border-radius: 14px; }
+      .now { margin: 14px 2px 0; }
+      .now .muted { font-size: 13px; }
+      .carousel { margin: 26px 0 48px; }
+      .track {
+        gap: 14px; padding: 10px max(16px, calc(50% - 42vw)) 22px;
+        scroll-padding-inline: max(16px, calc(50% - 42vw));
+      }
+      .card { flex-basis: 84vw; padding: 18px; opacity: .65; }
+      .nav { display: none; }   /* swipe instead of arrows on touch */
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 950 950" fill="#e6e6e6" aria-label="Mosaik" role="img">
+        <path d="m308.2 152.8l174.3 398h2.6l176.9-398h95.5c-75.2-65.1-173.2-104.4-280.5-104.4-107.3 0-205.4 39.3-280.6 104.4zm479.6 554.5l47.6 5.6c44.6-67.6 70.5-148.6 70.5-235.6 0-100.6-34.7-193.1-92.7-266.3l-25.4 3.1c-12.8 1.7-13.6 3.4-13.6 16.1v460.9c0 11.1 2.5 15.3 13.6 16.2zm-190.5 61.2v-54.4l70.6-6c11.9-0.8 13.6-4.2 13.6-17v-386.9h-2.6l-147.9 328.2h-110.6l-148.8-332.5h-1.7v390.4c0 13.6 0.9 16.1 13.6 17l73.2 6.8v54.4h-194.7c78.4 84.7 190.5 137.7 315 137.7 124.4 0 236.5-53 314.9-137.7zm-426.9-60.4c11.9-0.8 13.6-4.2 13.6-17v-460c0-12.8-1.7-16.2-13.6-17l-29.6-3.3c-58.1 73.2-92.8 165.8-92.8 266.5 0 87.4 26.2 168.7 71.1 236.5z"></path>
+        <path fill-rule="evenodd" d="m477 954.7c-64.5 0-127-12.6-185.9-37.5-56.8-24.1-107.9-58.5-151.7-102.3-43.8-43.9-78.3-94.9-102.3-151.8-24.9-58.8-37.5-121.4-37.5-185.8 0-64.5 12.6-127 37.5-185.8 24-56.9 58.5-107.9 102.3-151.8 43.8-43.8 94.9-78.2 151.7-102.3 58.9-24.9 121.4-37.5 185.9-37.5 64.4 0 126.9 12.6 185.8 37.5 56.9 24.1 107.9 58.5 151.7 102.3 43.9 43.9 78.3 94.9 102.4 151.8 24.8 58.8 37.5 121.3 37.5 185.8 0 64.4-12.7 127-37.5 185.8-24.1 56.9-58.5 107.9-102.4 151.8-43.8 43.8-94.8 78.2-151.7 102.3-58.9 24.9-121.4 37.5-185.8 37.5zm0-934.5c-122.1 0-236.9 47.6-323.2 133.9-86.3 86.3-133.9 201.1-133.9 323.2 0 122.1 47.6 236.9 133.9 323.2 86.3 86.3 201.1 133.9 323.2 133.9 122.1 0 236.8-47.6 323.2-133.9 86.3-86.3 133.8-201.1 133.8-323.2 0-122.1-47.5-236.9-133.8-323.2-86.4-86.3-201.1-133.9-323.2-133.9z"></path>
+      </svg>
+      <h1>Sermon search <span>· Mosaik Berlin transcripts</span></h1>
+    </div>
+    <form id="form">
+      <input id="q" type="search" placeholder="Search by meaning, e.g. 'trusting God when life is uncertain'" autofocus />
+      <select id="lang">
+        <option value="">All languages</option>
+        <option value="en">English</option>
+        <option value="de">Deutsch</option>
+      </select>
+      <select id="preacher">
+        <option value="">All preachers</option>
+      </select>
+      <button class="go" id="go" type="submit">Search</button>
+    </form>
+    <p class="examples">
+      <a data-q="how to overcome fear and anxiety">overcoming fear</a>
+      <a data-q="forgiveness and grace">forgiveness</a>
+      <a data-q="finding purpose and calling">purpose &amp; calling</a>
+      <a data-q="the power of prayer">prayer</a>
+    </p>
+  </header>
+
+  <div class="stage">
+    <div class="player-frame">
+      <div id="player"></div>
+      <button class="poster" id="poster" hidden aria-label="Play"></button>
+      <div class="player-empty" id="playerEmpty">Search above — the centered card plays here.</div>
+    </div>
+    <div class="now" id="now"></div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <section class="carousel">
+    <button class="nav prev" id="prev" hidden>‹</button>
+    <div class="track" id="track"></div>
+    <button class="nav next" id="next" hidden>›</button>
+  </section>
+
+  <script>
+    // ---- YouTube IFrame API: one player, we swap videos by seeking ----
+    let ytPlayer = null, ytReady = false, pendingLoad = null;
+    window.onYouTubeIframeAPIReady = function () {
+      ytPlayer = new YT.Player("player", {
+        playerVars: { rel: 0, modestbranding: 1 },
+        events: { onReady: () => { ytReady = true; if (pendingLoad) { loadIntoPlayer(pendingLoad); pendingLoad = null; } } },
+      });
+    };
+    (function () {
+      const s = document.createElement("script");
+      s.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(s);
+    })();
+
+    const posterEl = document.getElementById("poster");
+    function thumb(id) { return "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg"; }
+
+    // Idle/pre-play state: our own clean poster (no YouTube title-on-button).
+    function showPoster(hit) {
+      posterEl.style.backgroundImage = "url('" + thumb(hit.video_id) + "')";
+      posterEl.hidden = false;
+      document.getElementById("playerEmpty").style.display = "none";
+    }
+    posterEl.addEventListener("click", () => { if (hits[activeIdx]) loadIntoPlayer(hits[activeIdx]); });
+
+    let currentKey = null;
+    // Mount/seek the real player. Called from user gestures, so autoplay works
+    // with sound and YouTube's title-covered play button never shows.
+    function loadIntoPlayer(hit) {
+      posterEl.hidden = true;
+      document.getElementById("playerEmpty").style.display = "none";
+      const key = hit.video_id + "@" + hit.start;
+      if (key === currentKey) return;
+      currentKey = key;
+      if (!ytReady) { pendingLoad = hit; return; }
+      ytPlayer.loadVideoById({ videoId: hit.video_id, startSeconds: hit.start });
+    }
+
+    // ---- DOM refs ----
+    const form = document.getElementById("form");
+    const input = document.getElementById("q");
+    const langSel = document.getElementById("lang");
+    const preacherSel = document.getElementById("preacher");
+    const go = document.getElementById("go");
+
+    // Fill the preacher dropdown from the DB once, on page load.
+    fetch("/preachers")
+      .then((r) => r.json())
+      .then((d) => {
+        for (const { preacher, count } of d.preachers || []) {
+          const o = document.createElement("option");
+          o.value = preacher;
+          o.textContent = preacher + " (" + count + ")";
+          preacherSel.appendChild(o);
+        }
+      })
+      .catch(() => {}); // non-fatal: the dropdown just stays "All preachers"
+    const statusEl = document.getElementById("status");
+    const track = document.getElementById("track");
+    const nowEl = document.getElementById("now");
+    const prevBtn = document.getElementById("prev");
+    const nextBtn = document.getElementById("next");
+
+    let hits = [];
+    let activeIdx = -1;
+
+    document.querySelectorAll(".examples a").forEach((a) => {
+      a.addEventListener("click", () => { input.value = a.dataset.q; runSearch(); });
+    });
+    form.addEventListener("submit", (e) => { e.preventDefault(); runSearch(); });
+    prevBtn.addEventListener("click", () => scrollToCard(activeIdx - 1));
+    nextBtn.addEventListener("click", () => scrollToCard(activeIdx + 1));
+    document.addEventListener("keydown", (e) => {
+      if (document.activeElement === input) return;
+      if (e.key === "ArrowRight") scrollToCard(activeIdx + 1);
+      if (e.key === "ArrowLeft") scrollToCard(activeIdx - 1);
+    });
+
+    async function runSearch() {
+      const query = input.value.trim();
+      if (!query) return;
+      go.disabled = true;
+      statusEl.textContent = "Embedding query and searching transcripts…";
+      try {
+        const res = await fetch("/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, limit: 12, language: langSel.value, preacher: preacherSel.value }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Search failed");
+        renderCarousel(query, data.hits);
+      } catch (err) {
+        statusEl.innerHTML = '<span class="err">' + err.message + "</span>";
+      } finally {
+        go.disabled = false;
+      }
+    }
+
+    function fmtTime(s) {
+      const m = Math.floor(s / 60), sec = s % 60;
+      return m + ":" + String(sec).padStart(2, "0");
+    }
+
+    function renderCarousel(query, results) {
+      hits = results || [];
+      activeIdx = -1;
+      currentKey = null;
+      statusEl.textContent = hits.length
+        ? 'Top ' + hits.length + ' passages for "' + query + '" — swipe or use ← → ; the centered card plays above.'
+        : "No results — has `npm run sermons` been run yet?";
+      prevBtn.hidden = nextBtn.hidden = hits.length === 0;
+      nowEl.innerHTML = "";
+
+      track.innerHTML = hits.map((h, i) => {
+        const pct = Math.max(0, Math.min(100, Math.round(h.similarity * 100)));
+        const langClass = h.language === "de" ? "lang de" : "lang";
+        return (
+          '<article class="card" data-idx="' + i + '">' +
+            '<div class="card-top">' +
+              '<span class="rank">' + h.rank + '</span>' +
+              '<span class="preacher">' + escapeHtml(h.preacher) + '</span>' +
+              '<span class="' + langClass + '">' + escapeHtml(h.language || "?") + '</span>' +
+              '<span class="date">' + escapeHtml(h.date || "") + '</span>' +
+              '<span class="score">' + pct + '%</span>' +
+            '</div>' +
+            '<p class="title">' + escapeHtml(h.sermon_title) + ' · @ ' + fmtTime(h.start) + '</p>' +
+            '<p class="text">“' + renderText(h.text, h.highlight) + '”</p>' +
+            '<div class="bar"><span style="width:' + pct + '%"></span></div>' +
+            '<button class="more" data-preacher="' + escapeHtml(h.preacher) + '">More from ' + escapeHtml(h.preacher) + ' →</button>' +
+          '</article>'
+        );
+      }).join("");
+
+      track.querySelectorAll(".card").forEach((card) => {
+        card.addEventListener("click", () => scrollToCard(Number(card.dataset.idx)));
+      });
+
+      // "More from this preacher" → set the filter and re-search the same query.
+      // stopPropagation so the click doesn't also trigger the card's play/scroll.
+      track.querySelectorAll(".more").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          preacherSel.value = btn.dataset.preacher;
+          runSearch();
+        });
+      });
+
+      if (hits.length) { requestAnimationFrame(() => { track.scrollLeft = 0; setActive(0, false); }); }
+    }
+
+    function scrollToCard(idx) {
+      if (idx < 0 || idx >= hits.length) return;
+      const card = track.children[idx];
+      if (card) card.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      setActive(idx, true);
+    }
+
+    // mark a card active, update "now playing" meta. `play` = came from a user
+    // gesture (swipe/click/arrow) → seek the player; otherwise show the poster.
+    function setActive(idx, play) {
+      if (idx === activeIdx && play !== true) return;
+      activeIdx = idx;
+      [...track.children].forEach((c, i) => c.classList.toggle("active", i === idx));
+      const h = hits[idx];
+      if (!h) return;
+      nowEl.innerHTML =
+        '<span class="preacher">' + escapeHtml(h.preacher) + '</span>' +
+        '<span class="muted">' + escapeHtml(h.sermon_title) + ' · ' + escapeHtml(h.language) +
+        ' · ' + escapeHtml(h.date) + ' · @ ' + fmtTime(h.start) + '</span>';
+      if (play) loadIntoPlayer(h); else showPoster(h);
+    }
+
+    // detect the centered card as the user swipes/scrolls the track
+    let scrollTimer = null;
+    track.addEventListener("scroll", () => {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        const mid = track.scrollLeft + track.clientWidth / 2;
+        let best = 0, bestDist = Infinity;
+        [...track.children].forEach((c, i) => {
+          const center = c.offsetLeft + c.offsetWidth / 2;
+          const d = Math.abs(center - mid);
+          if (d < bestDist) { bestDist = d; best = i; }
+        });
+        setActive(best, true);
+      }, 130);
+    });
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => (
+        { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+      ));
+    }
+
+    // Escape the passage, then wrap the matched sentence in <mark>. Both strings
+    // are escaped the same way, so the highlight is still an exact substring.
+    function renderText(text, highlight) {
+      const esc = escapeHtml(text);
+      if (!highlight) return esc;
+      const h = escapeHtml(highlight);
+      const i = esc.indexOf(h);
+      if (i < 0) return esc;
+      return esc.slice(0, i) + "<mark>" + h + "</mark>" + esc.slice(i + h.length);
+    }
+  </script>
+</body>
+</html>
