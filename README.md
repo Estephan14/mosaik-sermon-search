@@ -4,6 +4,8 @@ Ask a question in plain English and get back the exact moments sermons answered
 it — preacher, date, the passage itself, and a YouTube link that jumps to the
 precise second.
 
+**[Try it live →](https://jarvis-seven-ruddy.vercel.app/sermons)**
+
 Built for [Mosaik Berlin](https://www.mosaikberlin.com/)'s public sermon
 library as a hands-on study of **AI-native search**: embeddings, chunking,
 vector databases, and retrieval — the machinery under every RAG system, built
@@ -89,14 +91,7 @@ See [DEPLOY.md](DEPLOY.md) — it's a small Node server with a native module and
 a real filesystem, so it wants a container host (Render/Fly/Railway/VPS), not a
 serverless function.
 
----
-
-Built by [Jonathan Estephan](https://jonathanestephan.com). Sermon content
-belongs to Mosaik Berlin; this tool only makes their public library searchable.
-
-## Live demo
-
-**[Try it live →](https://jarvis-seven-ruddy.vercel.app/sermons)**
+## How the live demo is hosted
 
 The hosted version doesn't run LanceDB at all — `export_index.mjs` truncates
 the stored vectors to 768 Matryoshka dimensions, renormalizes, and quantizes
@@ -105,3 +100,8 @@ into a serverless function (`serverless/`) that brute-forces cosine over all
 31k vectors in memory per query — no database, no disk, no cold-start
 downloads. Top-5 results agree with the full 1536-dim store 4/5 on test
 queries (`sanity_check.mjs`).
+
+---
+
+Built by [Jonathan Estephan](https://jonathanestephan.com). Sermon content
+belongs to Mosaik Berlin; this tool only makes their public library searchable.
